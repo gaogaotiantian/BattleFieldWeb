@@ -32,6 +32,9 @@ class GameBackend(object):
     
     def register(self, client, channel):
         self.clients.append({'wsconn':client, 'channel':channel})
+        data = self.getStaticData()
+        if data:
+            gevent.spawn(self.send, client, data)
 
     def listenEvents(self):
         for message in self.pubsub.listen():
@@ -53,12 +56,12 @@ class GameBackend(object):
             client['wsconn'].send(data)
         except Exception:
             self.clients.remove(client)
+
+    def getStaticData(self):
+        return redisConn.get('staticMapInfo').decode('utf-8')
+
     def getData(self):
-        if random.randint(1, 6) == 1:
-            posStr = redisConn.get('staticMapInfo')
-        else:
-            posStr = redisConn.get('dynamicGameInfo')
-        return posStr.decode('utf-8')
+        return redisConn.get('dynamicGameInfo').decode('utf-8')
 
     def run(self):
         gevent.spawn(self.listenEvents)
