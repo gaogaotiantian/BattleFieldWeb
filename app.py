@@ -31,10 +31,11 @@ class GameBackend(object):
         self.pubsub.subscribe('events')
     
     def register(self, client, channel):
-        self.clients.append({'wsconn':client, 'channel':channel})
+        c = {'wsconn':client, 'channel':channel}
+        self.clients.append(c)
         data = self.getStaticData()
         if data:
-            gevent.spawn(self.send, client, data)
+            gevent.spawn(self.send, c, data)
 
     def listenEvents(self):
         for message in self.pubsub.listen():
