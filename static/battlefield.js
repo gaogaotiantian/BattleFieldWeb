@@ -1,13 +1,16 @@
-url = "localhost:8000"
+//url = "localhost:8000"
+url = "battlefieldweb.herokuapp.com"
 server_url = "http://"+url
 ws_url = "ws://"+url
 
 game = {};
+game['id'] = 0;
 gameObjects = {};
 phaser = null;
 
-var gameInfoSocket = new ReconnectingWebSocket(ws_url+"/getGameInfo");
-var sendActionSocket = new ReconnectingWebSocket(ws_url+"/sendAction");
+var channel = Math.random().toString().substring(2,15);
+var gameInfoSocket = new ReconnectingWebSocket(ws_url+"/getGameInfo/" + channel);
+var sendActionSocket = new ReconnectingWebSocket(ws_url+"/sendAction/" + channel);
 
 gameInfoSocket.onmessage = function(message) {
     var data = JSON.parse(message.data);
@@ -27,6 +30,13 @@ gameInfoSocket.onmessage = function(message) {
                 game['map'] = data['map'];
                 //updateMap();
             }
+        } else if (data['infoType'] == 'joinInfo') {
+            game['id'] = data['id'];
+        } else if (data['infoType'] == 'event') {
+            var e = data['event'];
+            if (e['eventType'] == 'playerDown') {
+                playerDown(e['id']);
+            }
         }
     }
 }
@@ -34,6 +44,7 @@ gameInfoSocket.onmessage = function(message) {
 function sendMove(x, y) {
     sendActionSocket.send(JSON.stringify({
         "actionType": "move",
+        "player": game['id'],
         "x": x,
         "y": y 
     }));
@@ -41,7 +52,20 @@ function sendMove(x, y) {
 
 function sendShoot() {
     sendActionSocket.send(JSON.stringify({
-        "actionType": "shoot"
+        "actionType": "shoot",
+        "player": game['id']
+    }));
+}
+
+function sendJoin() {
+    sendActionSocket.send(JSON.stringify({
+        "actionType": "join"
+    }));
+}
+
+function sendRestart() {
+    sendActionSocket.send(JSON.stringify({
+        "actionType": "restart"
     }));
 }
 function updateGameInfo() {
@@ -57,6 +81,10 @@ function updateGameInfo() {
         }
     })
 }
+function playerDown(id) {
+    console.log("player down")
+}
+
 function getObjectPosition(obj) {
     var deltaTime = Date.now() / 1000.0 - game['clientDeltaTime'] - game['timestamp'];
     var ret = {};
@@ -80,7 +108,7 @@ function create() {
     var tiles = map.addTilesetImage('tiles');
     var layer = map.createBlankDynamicLayer('layer', tiles);
 
-    gameObjects['player'] = {};
+    gameObjects['players'] = {};
     gameObjects['bullets'] = {};
     gameObjects['map'] = map;
 
@@ -99,21 +127,31 @@ function update() {
         var player = game['players'][i];
         var pos = getObjectPosition(player);
         var id = player['id'];
-        if (gameObjects['player'][id]) {
-            var gameObj = gameObjects['player'][id]
-            Phaser.Actions.ShiftPosition(gameObj.getChildren(), pos['x'], pos['y']);
-            gameObj.getChildren()[0].rotation = player['angle'];
+        if (player['dead']) {
+            if (gameObjects['players'][id]) {
+                gameObjects['players'][id].destroy(destroyChildren = true);
+                delete gameObjects['players'][id];
+            }
+            
         } else {
-            var group = this.add.group();
-            group.create(player['x'], player['y'], 'player');
-            gameObjects['player'][id] = group;
+            if (gameObjects['players'][id]) {
+                var gameObj = gameObjects['players'][id]
+                Phaser.Actions.ShiftPosition(gameObj.getChildren(), pos['x'], pos['y']);
+                gameObj.getChildren()[0].rotation = player['angle'];
+            } else {
+                var group = this.add.group();
+                group.create(player['x'], player['y'], 'player');
+                gameObjects['players'][id] = group;
+            }
         }
     }
 
+    var existIdList = []
     for (var i in game['bullets']) {
         var bullet = game['bullets'][i];
         var pos = getObjectPosition(bullet);
         var id = bullet['id'];
+        existIdList.push(id);
         if (gameObjects['bullets'][id]) {
             var gameObj = gameObjects['bullets'][id]
             Phaser.Actions.ShiftPosition(gameObj.getChildren(), pos['x'], pos['y']);
@@ -124,6 +162,22 @@ function update() {
             gameObjects['bullets'][id] = group;
         }
     }
+    
+    var deleteIdList = []
+    for (var i in gameObjects['bullets']) {
+        if (existIdList.indexOf(parseInt(i)) < 0) {
+            deleteIdList.push(i);
+        }
+    }
+
+    for (var i in deleteIdList) {
+        var id = deleteIdList[i];
+        if (gameObjects['bullets'][id]) {
+            gameObjects['bullets'][id].destroy(destroyChilder = true);
+            delete gameObjects['bullets'][id];
+        }
+    }
+
     if (game['map'] && game['map']['tile']) {
         updateMap(this, game['map']['tile']);
     }
@@ -146,4 +200,9 @@ $(function() {
     };
 
     phaser = new Phaser.Game(config);
+
+    $('#join-game-button').click(function() {
+        sendJoin();
+        this.blur();
+    });
 })

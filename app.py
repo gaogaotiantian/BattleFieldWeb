@@ -27,13 +27,30 @@ sockets = Sockets(app)
 class GameBackend(object):
     def __init__(self):
         self.clients = []
+        self.pubsub = redisConn.pubsub()
+        self.pubsub.subscribe('events')
     
-    def register(self, client):
-        self.clients.append(client)
+    def register(self, client, channel):
+        self.clients.append({'wsconn':client, 'channel':channel})
+
+    def listenEvents(self):
+        for message in self.pubsub.listen():
+            data = message.get('data')
+            if message['type'] == 'message':
+                dataStr = data.decode('utf-8')
+                data = json.loads(dataStr)
+
+                if 'channel' in data:
+                    for client in self.clients:
+                        if client['channel'] == data['channel']:
+                            gevent.spawn(self.send, client, dataStr)
+                else:
+                    for client in self.clients:
+                        gevent.spawn(self.send, client, dataStr)
 
     def send(self, client, data):
         try:
-            client.send(data)
+            client['wsconn'].send(data)
         except Exception:
             self.clients.remove(client)
     def getData(self):
@@ -44,6 +61,7 @@ class GameBackend(object):
         return posStr.decode('utf-8')
 
     def run(self):
+        gevent.spawn(self.listenEvents)
         while True:
             data = self.getData()
             if data:
@@ -62,19 +80,24 @@ def getResp(t):
     return resp
 
 
-@sockets.route('/getGameInfo')
-def getGameInfo(ws):
-    game.register(ws)
+@sockets.route('/getGameInfo/<channel>')
+def getGameInfo(ws, channel):
+    game.register(ws, channel)
     while not ws.closed:
         gevent.sleep(0.02)
 
-@sockets.route('/sendAction')
-def sendAction(ws):
+@sockets.route('/sendAction/<channel>')
+def sendAction(ws, channel):
     while not ws.closed:
         gevent.sleep(0.02)
         message = ws.receive()
         if message:
-            redisConn.rpush('actionQueue', message)
+            data = json.loads(message)
+            if data['actionType'] == 'join':
+                data['channel'] = channel
+                redisConn.rpush('actionQueue', json.dumps(data))
+            else:
+                redisConn.rpush('actionQueue', message)
     
 @app.route('/')
 def index():
