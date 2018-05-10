@@ -50,10 +50,12 @@ function sendMove(x, y) {
     }));
 }
 
-function sendShoot() {
+function sendShoot(x, y) {
     sendActionSocket.send(JSON.stringify({
         "actionType": "shoot",
-        "player": game['id']
+        "player": game['id'],
+        "x": x,
+        "y": y
     }));
 }
 
@@ -98,15 +100,17 @@ function updateMap() {
     map.putTilesAt(data, 0, 0);
 }
 function preload() {
-    this.load.image('tiles', '/static/assets/Tilesheet/tilesheet_complete.png');
+    this.load.image('tileImage', '/static/assets/Tilesheet/tilesheet_complete.png');
     this.load.image('player', 'static/assets/PNG/Man Blue/manBlue_gun.png');
     this.load.image('bullet', '/static/assets/blaster/images/image95.png');
+    this.load.tilemapTiledJSON('mapJSON', '/static/map.json');
 }
 
 function create() {
-    var map = this.make.tilemap({tileWidth:32, tileHeight:32, width: 30, height: 30});
-    var tiles = map.addTilesetImage('tiles');
-    var layer = map.createBlankDynamicLayer('layer', tiles);
+    var map = this.make.tilemap({key: 'mapJSON'});
+    var tiles = map.addTilesetImage('tile', 'tileImage');
+    var layer = map.createStaticLayer(1, tiles, 0, 0);
+    var layer2 = map.createStaticLayer(2, tiles, 0, 0);
 
     gameObjects['players'] = {};
     gameObjects['bullets'] = {};
@@ -114,14 +118,22 @@ function create() {
 
     // events
     this.input.on('pointerdown', function(pointer) {
-        sendMove(pointer.x, pointer.y);
-    }, this);
+        console.log(pointer)
+        var p = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
 
-    this.input.keyboard.on('keydown_SPACE', function(event) {
-        sendShoot();
-    })
+        if (pointer.buttons == 1) { 
+            // left click
+            sendMove(p.x, p.y);
+        } else if (pointer.buttons == 2) {
+            // right click
+            sendShoot(p.x, p.y);
+        }
+        
+    }, this);
+    console.log(this.cameras.main)
 }
 
+var mainCamera;
 function update() {
     for (var i in game['players']) {
         var player = game['players'][i];
@@ -178,9 +190,30 @@ function update() {
         }
     }
 
-    if (game['map'] && game['map']['tile']) {
-        updateMap(this, game['map']['tile']);
+    // Set up cameras
+    var myObject = gameObjects['players'][game['id']];
+    if (myObject) {
+        mainCamera = this.cameras.main;
+        var diffX = myObject.getChildren()[0].x - 480 - this.cameras.main.scrollX;
+        var diffY = myObject.getChildren()[0].y - 480 - this.cameras.main.scrollY;
+        var count = 0;
+        while (Math.abs(diffX) > 1 && count < 5) {
+            diffX /= 2;
+            count += 1;
+        }
+        this.cameras.main.scrollX += diffX;
+
+        count = 0;
+        while (Math.abs(diffY) > 1 && count < 5) {
+            diffY /= 2;
+            count += 1;
+        }
+        this.cameras.main.scrollY += diffY;
     }
+
+    //if (game['map'] && game['map']['tile']) {
+    //    updateMap(this, game['map']['tile']);
+    //}
     
 }
 $(function() {
@@ -200,6 +233,10 @@ $(function() {
     };
 
     phaser = new Phaser.Game(config);
+
+    document.oncontextmenu = function() {
+        return false;
+    }
 
     $('#join-game-button').click(function() {
         sendJoin();
