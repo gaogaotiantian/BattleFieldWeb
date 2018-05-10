@@ -56,6 +56,8 @@ class GameBackend(object):
         try:
             client['wsconn'].send(data)
         except Exception:
+            data = {"actionType": "leave", "channel":client['channel']}
+            redisConn.rpush('actionQueue', json.dumps(data))
             self.clients.remove(client)
 
     def getStaticData(self):
