@@ -12,6 +12,7 @@ var channel = Math.random().toString().substring(2,15);
 var gameInfoSocket = new ReconnectingWebSocket(ws_url+"/getGameInfo/" + channel);
 var sendActionSocket = new ReconnectingWebSocket(ws_url+"/sendAction/" + channel);
 var playerHitQueue = [];
+var playerChangeWeaponQueue = [];
 gameInfoSocket.onmessage = function(message) {
     var data = JSON.parse(message.data);
     if (data['infoType']) {
@@ -83,6 +84,17 @@ function playerDown(id) {
     console.log("player down")
 }
 
+function getGunType(gunName) {
+    if (['base', 'german_pistol'].indexOf(gunName) >= 0) {
+        return "gun";
+    } else if (['mp_40', 'mp_43', 'fg_42'].indexOf(gunName) >= 0) {
+        return "machine";
+    } else if (['m1_carbine'].indexOf(gunName) >= 0) {
+        return "silencer";
+    }
+    return "gun";
+}
+
 function updatePlayerInfo() {
     $('#player-info-div').empty();
     if (game['players']) {
@@ -96,9 +108,18 @@ function updatePlayerInfo() {
                 return a.death - b.death;
             }
         });
+        var $userRow = $('<div>').addClass('row');
+        $userRow.append($('<div>').addClass('col-6 px-0').text("Name"));
+        $userRow.append($('<div>').addClass('col-3 px-0').text("K"));
+        $userRow.append($('<div>').addClass('col-3 px-0').text("D"));
+        $('#player-info-div').append($userRow);
         for (var i = 0; i < playerInfo.length; i++) {
             var p = playerInfo[i];
-            $('#player-info-div').append($('<p>').text(p.name + " " + p.kill.toString() + "/" + p.death.toString()));
+            var $userRow = $('<div>').addClass('row');
+            $userRow.append($('<div>').addClass('col-6 px-0').text(p.name));
+            $userRow.append($('<div>').addClass('col-3 px-0').text(p.kill.toString()));
+            $userRow.append($('<div>').addClass('col-3 px-0').text(p.death.toString()));
+            $('#player-info-div').append($userRow);
         }
     }
 }
@@ -117,7 +138,9 @@ function updateMap() {
 }
 function preload() {
     this.load.image('tileImage', '/static/assets/Tilesheet/tilesheet_complete.png');
-    this.load.image('player', 'static/assets/PNG/Man Blue/manBlue_gun.png');
+    this.load.image('player_gun', 'static/assets/PNG/Man Blue/manBlue_gun.png');
+    this.load.image('player_machine', 'static/assets/PNG/Man Blue/manBlue_machine.png');
+    this.load.image('player_silencer', 'static/assets/PNG/Man Blue/manBlue_silencer.png');
     this.load.image('bullet', '/static/assets/blaster/images/image95.png');
     this.load.image('bullet_size1', '/static/assets/bullets/size1.png');
     this.load.image('bullet_size2', '/static/assets/bullets/size2.png');
@@ -128,6 +151,7 @@ function preload() {
     this.load.image('bullet_size7', '/static/assets/bullets/size7.png');
     this.load.image('bullet_whitefast', '/static/assets/bullets/white_fast.png');
     this.load.image('bullet_yellowfast', '/static/assets/bullets/yellow_fast.png');
+    this.load.image('random_weapon_buff', '/static/assets/buffs/purple_gem.png');
     this.load.image('health', '/static/assets/heart.png');
 
     // weapons
@@ -185,6 +209,13 @@ function updatePlayers(phaser) {
         } else {
             if (gameObjects['players'][id]) {
                 var gameObj = gameObjects['players'][id];
+                var gunType = getGunType(player['weapon']);
+                if (gunType != gameObj.gunType) {
+                    var deleteImage = gameObj.getChildren()[0];
+                    gameObj.getChildren()[0] = phaser.add.image(player['x'], player['y'], "player_"+gunType);
+                    gameObj.gunType = gunType;
+                    deleteImage.destroy();
+                }
                 var graphics = gameObj.getChildren()[1];
                 Phaser.Actions.ShiftPosition(gameObj.getChildren(), pos['x'], pos['y']);
                 gameObj.getChildren()[0].rotation = player['angle'];
@@ -194,13 +225,15 @@ function updatePlayers(phaser) {
                     graphics.fillStyle(0xff0000, 0.5);
                     graphics.fillRect(-32, -32, 64*player['hp']/100, 5);
                 }
+
             } else {
                 var group = phaser.add.group();
-                group.create(player['x'], player['y'], 'player');
+                group.create(player['x'], player['y'], 'player_gun');
                 var graphics = phaser.add.graphics();
                 graphics.fillStyle(0xff0000, 0.5);
                 graphics.fillRect(-32, -32, 64, 5);
-                group.add(graphics)
+                group.add(graphics);
+                group.gunType = getGunType(player['weapon']); 
                 gameObjects['players'][id] = group;
             }
         }
@@ -393,7 +426,7 @@ $(function() {
     var config = {
         type: Phaser.AUTO,
         width: $('#game-canvas-div').width(),
-        height: window.innerHeight,
+        height: window.innerHeight - 30,
         parent: 'game-canvas-div',
         canvas: $('#game-canvas')[0],
         scene: {
@@ -407,7 +440,7 @@ $(function() {
     phaserGame = new Phaser.Game(config);
 
     window.addEventListener('resize', function(event) {
-        phaserGame.resize($('#game-canvas-div').width(), window.innerHeight);
+        phaserGame.resize($('#game-canvas-div').width(), window.innerHeight- 30);
     }, false);
 
     document.oncontextmenu = function() {
