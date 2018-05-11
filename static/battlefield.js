@@ -305,6 +305,7 @@ function updateBullets(phaser) {
                 bullet_type = "bullet_size1";
             }
             group.create(bullet['x'], bullet['y'], bullet_type);
+            group.getChildren()[0].rotation = bullet['angle'];
             gameObjects['bullets'][id] = group;
         }
     }
