@@ -58,7 +58,10 @@ class GameBackend(object):
         except Exception:
             data = {"actionType": "leave", "channel":client['channel']}
             redisConn.rpush('actionQueue', json.dumps(data))
-            self.clients.remove(client)
+            try:
+                self.clients.remove(client)
+            except Exception:
+                pass
 
     def getStaticData(self):
         return redisConn.get('staticMapInfo').decode('utf-8')
