@@ -85,19 +85,21 @@ function playerDown(id) {
 
 function updatePlayerInfo() {
     $('#player-info-div').empty();
-    var playerInfo = JSON.parse(JSON.stringify(game['players']));
-    playerInfo.sort(function(a,b) {
-        if (a.kill > b.kill) {
-            return -1;
-        } else if (a.kill < b.kill) {
-            return 1;
-        } else {
-            return a.death - b.death;
+    if (game['players']) {
+        var playerInfo = JSON.parse(JSON.stringify(game['players']));
+        playerInfo.sort(function(a,b) {
+            if (a.kill > b.kill) {
+                return -1;
+            } else if (a.kill < b.kill) {
+                return 1;
+            } else {
+                return a.death - b.death;
+            }
+        });
+        for (var i = 0; i < playerInfo.length; i++) {
+            var p = playerInfo[i];
+            $('#player-info-div').append($('<p>').text(p.name + " " + p.kill.toString() + "/" + p.death.toString()));
         }
-    });
-    for (var i = 0; i < playerInfo.length; i++) {
-        var p = playerInfo[i];
-        $('#player-info-div').append($('<p>').text(p.name + " " + p.kill.toString() + "/" + p.death.toString()));
     }
 }
 
