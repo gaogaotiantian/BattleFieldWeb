@@ -1,5 +1,5 @@
-url = "localhost:8000"
-//url = "battlefieldweb.herokuapp.com"
+//url = "localhost:8000"
+url = "battlefieldweb.herokuapp.com"
 server_url = "http://"+url
 ws_url = "ws://"+url
 
