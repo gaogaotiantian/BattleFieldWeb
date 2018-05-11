@@ -1,5 +1,5 @@
-//url = "localhost:8000"
-url = "battlefieldweb.herokuapp.com"
+url = "localhost:8000"
+//url = "battlefieldweb.herokuapp.com"
 server_url = "http://"+url
 ws_url = "ws://"+url
 
@@ -119,7 +119,23 @@ function preload() {
     this.load.image('tileImage', '/static/assets/Tilesheet/tilesheet_complete.png');
     this.load.image('player', 'static/assets/PNG/Man Blue/manBlue_gun.png');
     this.load.image('bullet', '/static/assets/blaster/images/image95.png');
+    this.load.image('bullet_size1', '/static/assets/bullets/size1.png');
+    this.load.image('bullet_size2', '/static/assets/bullets/size2.png');
+    this.load.image('bullet_size3', '/static/assets/bullets/size3.png');
+    this.load.image('bullet_size4', '/static/assets/bullets/size4.png');
+    this.load.image('bullet_size5', '/static/assets/bullets/size5.png');
+    this.load.image('bullet_size6', '/static/assets/bullets/size6.png');
+    this.load.image('bullet_size7', '/static/assets/bullets/size7.png');
+    this.load.image('bullet_whitefast', '/static/assets/bullets/white_fast.png');
+    this.load.image('bullet_yellowfast', '/static/assets/bullets/yellow_fast.png');
     this.load.image('health', '/static/assets/heart.png');
+
+    // weapons
+    this.load.image('german_pistol', '/static/assets/weapons/german_pistol.png');
+    this.load.image('m1_carbine', '/static/assets/weapons/m1_carbine.png');
+    this.load.image('mp_43', '/static/assets/weapons/mp_43.png');
+    this.load.image('mp_40', '/static/assets/weapons/mp_40.png');
+    this.load.image('fg_42', '/static/assets/weapons/fg_42.png');
     this.load.tilemapTiledJSON('mapJSON', '/static/map.json');
 }
 
@@ -237,7 +253,25 @@ function updateBullets(phaser) {
             gameObj.getChildren()[0].rotation = bullet['angle'];
         } else {
             var group = phaser.add.group();
-            group.create(bullet['x'], bullet['y'], 'bullet');
+            var bullet_type = "";
+            if (bullet.speed >= 400) {
+                bullet_type = "bullet_yellowfast";
+            } else if (bullet.size >= 10) {
+                bullet_type = "bullet_size7";
+            } else if (bullet.size >= 8) {
+                bullet_type = "bullet_size6";
+            } else if (bullet.size >= 6) {
+                bullet_type = "bullet_size5";
+            } else if (bullet.size >= 4) {
+                bullet_type = "bullet_size4";
+            } else if (bullet.size >= 3) {
+                bullet_type = "bullet_size3";
+            } else if (bullet.size >= 2) {
+                bullet_type = "bullet_size2";
+            } else if (bullet.size >= 1) {
+                bullet_type = "bullet_size1";
+            }
+            group.create(bullet['x'], bullet['y'], bullet_type);
             gameObjects['bullets'][id] = group;
         }
     }
