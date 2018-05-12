@@ -44,10 +44,10 @@ function connectToServer() {
                     }
                 }
             } else if (data['infoType'] == 'staticMapInfo') {
-                if (data['map']) {
-                    game['map'] = data['map'];
-                    //updateMap();
-                }
+                //if (data['map']) {
+                //    game['map'] = data['map'];
+                //    //updateMap();
+                //}
             } else if (data['infoType'] == 'joinInfo') {
                 game['id'] = data['id'];
             } else if (data['infoType'] == 'event') {
@@ -428,10 +428,6 @@ function update() {
         this.cameras.main.scrollY += diffY;
     }
 
-    //if (game['map'] && game['map']['tile']) {
-    //    updateMap(this, game['map']['tile']);
-    //}
-    
 }
 
 function resize(width, height) {
