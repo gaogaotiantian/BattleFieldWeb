@@ -9,68 +9,100 @@ gameObjects = {};
 phaserGame = null;
 
 var channel = Math.random().toString().substring(2,15);
-var gameInfoSocket = new ReconnectingWebSocket(ws_url+"/getGameInfo/" + channel);
-var sendActionSocket = new ReconnectingWebSocket(ws_url+"/sendAction/" + channel);
 var playerHitQueue = [];
-gameInfoSocket.onmessage = function(message) {
-    var data = JSON.parse(message.data);
-    if (data['infoType']) {
-        if (data['infoType'] == 'dynamicGameInfo') {
-            if (data['players']) {
-                game['players'] = data['players'];
-                game['bullets'] = data['bullets'];
-                game['items']   = data['items'];
-                game['timestamp'] = data['timestamp'];
-                var deltaTime = Date.now() / 1000.0 - game['timestamp'];
-                if (!game['clientDeltaTime'] || Math.abs(deltaTime - game['clientDeltaTime']) > 0.3) {
-                    game['clientDeltaTime'] = deltaTime;
+var gameInfoSocket = null;
+var sendActionSocket = null;
+
+function connectToServer() {
+    if (gameInfoSocket) {
+        gameInfoSocket.onclose = null;
+        gameInfoSocket.close();
+    }
+    if (sendActionSocket) {
+        sendActionSocket.onclose = null;
+        sendActionSocket.close();
+    }
+    gameInfoSocket = new WebSocket(ws_url+"/getGameInfo/" + channel);
+    sendActionSocket = new WebSocket(ws_url+"/sendAction/" + channel);
+
+    $('#connect-button').addClass('disabled');
+    $('connection-status').text("");
+
+    gameInfoSocket.onmessage = function(message) {
+        var data = JSON.parse(message.data);
+        if (data['infoType']) {
+            if (data['infoType'] == 'dynamicGameInfo') {
+                if (data['players']) {
+                    game['players'] = data['players'];
+                    game['bullets'] = data['bullets'];
+                    game['items']   = data['items'];
+                    game['timestamp'] = data['timestamp'];
+                    var deltaTime = Date.now() / 1000.0 - game['timestamp'];
+                    if (!game['clientDeltaTime'] || Math.abs(deltaTime - game['clientDeltaTime']) > 0.3) {
+                        game['clientDeltaTime'] = deltaTime;
+                    }
+                }
+            } else if (data['infoType'] == 'staticMapInfo') {
+                if (data['map']) {
+                    game['map'] = data['map'];
+                    //updateMap();
+                }
+            } else if (data['infoType'] == 'joinInfo') {
+                game['id'] = data['id'];
+            } else if (data['infoType'] == 'event') {
+                var e = data['event'];
+                if (e['eventType'] == 'playerDown') {
+                    playerDown(e['id']);
+                } else if (e['eventType'] == 'bulletHit') {
+                    playerHitQueue.push(e['player']);
                 }
             }
-        } else if (data['infoType'] == 'staticMapInfo') {
-            if (data['map']) {
-                game['map'] = data['map'];
-                //updateMap();
-            }
-        } else if (data['infoType'] == 'joinInfo') {
-            game['id'] = data['id'];
-        } else if (data['infoType'] == 'event') {
-            var e = data['event'];
-            if (e['eventType'] == 'playerDown') {
-                playerDown(e['id']);
-            } else if (e['eventType'] == 'bulletHit') {
-                playerHitQueue.push(e['player']);
-            }
+        }
+    }
+    gameInfoSocket.onclose = function() {
+        $('#connection-status').text("失去连接");
+        $('#connect-button').removeClass('disabled');
+    }
+    sendActionSocket.onclose = function() {
+        $('#connection-status').text("失去连接");
+        $('#connect-button').removeClass('disabled');
+    }
+
+}
+
+function sendMove(x, y) {
+    if (sendActionSocket.readyState == 1) {
+        if (game['id']) {
+            sendActionSocket.send(JSON.stringify({
+                "actionType": "move",
+                "player": game['id'],
+                "x": x,
+                "y": y 
+            }));
         }
     }
 }
 
-function sendMove(x, y) {
-    if (game['id']) {
-        sendActionSocket.send(JSON.stringify({
-            "actionType": "move",
-            "player": game['id'],
-            "x": x,
-            "y": y 
-        }));
-    }
-}
-
 function sendShoot(x, y) {
-    if (game['id']) {
-        sendActionSocket.send(JSON.stringify({
-            "actionType": "shoot",
-            "player": game['id'],
-            "x": x,
-            "y": y
-        }));
+    if (sendActionSocket.readyState == 1) {
+        if (game['id']) {
+            sendActionSocket.send(JSON.stringify({
+                "actionType": "shoot",
+                "player": game['id'],
+                "x": x,
+                "y": y
+            }));
+        }
     }
 }
 
 function sendJoin() {
-    sendActionSocket.send(JSON.stringify({
-        "actionType": "join",
-        "name": $('#username-input').val()
-    }));
+    if (sendActionSocket.readyState == 1) {
+        sendActionSocket.send(JSON.stringify({
+            "actionType": "join",
+            "name": $('#username-input').val()
+        }));
+    }
 }
 
 function sendRestart() {
@@ -418,4 +450,10 @@ $(function() {
         sendJoin();
         this.blur();
     });
+
+    $('#connect-button').click(function(){
+        connectToServer();
+        this.blur();
+    });
+    connectToServer();
 })
