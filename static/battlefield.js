@@ -1,5 +1,5 @@
 url = "localhost:8000"
-url = "battlefieldweb.herokuapp.com"
+//url = "battlefieldweb.herokuapp.com"
 server_url = "http://"+url
 ws_url = "ws://"+url
 
@@ -39,7 +39,7 @@ function connectToServer() {
                     game['items']   = data['items'];
                     game['timestamp'] = data['timestamp'];
                     var deltaTime = Date.now() / 1000.0 - game['timestamp'];
-                    if (!game['clientDeltaTime'] || Math.abs(deltaTime - game['clientDeltaTime']) > 0.3) {
+                    if (!game['clientDeltaTime'] || Math.abs(deltaTime - game['clientDeltaTime']) > 0.1) {
                         game['clientDeltaTime'] = deltaTime;
                     }
                 }
@@ -184,6 +184,7 @@ function preload() {
     this.load.image('bullet_whitefast', '/static/assets/bullets/white_fast.png');
     this.load.image('bullet_yellowfast', '/static/assets/bullets/yellow_fast.png');
     this.load.image('random_weapon_buff', '/static/assets/buffs/purple_gem.png');
+    this.load.image('random_player_buff', '/static/assets/buffs/green_gem.png');
     this.load.image('health', '/static/assets/heart.png');
 
     // weapons
@@ -195,6 +196,7 @@ function preload() {
     this.load.tilemapTiledJSON('mapJSON', '/static/map.json');
 }
 
+var cameraControls;
 function create() {
     var map = this.make.tilemap({key: 'mapJSON'});
     var tiles = map.addTilesetImage('tile', 'tileImage');
@@ -219,6 +221,21 @@ function create() {
         }
         
     }, this);
+
+    var cursors = this.input.keyboard.createCursorKeys();
+    var cameraControlConfig = {
+        camera: this.cameras.main,
+        left: cursors.left,
+        right: cursors.right,
+        up: cursors.up,
+        down: cursors.down,
+        zoomIn: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z),
+        zoomOut: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X),
+        acceleration: 0.6,
+        drag: 0.05,
+        maxSpeed: 1.0
+    }
+    cameraControls = new Phaser.Cameras.Controls.Smoothed(cameraControlConfig);
 
     this.events.on('resize', resize, this);
     setInterval(updatePlayerInfo, 500);
@@ -380,29 +397,27 @@ function updateItems(phaser) {
         }
     }
     
-    if (existIdList.length != gameObjects.itemNum) {
-        var deleteIdList = [];
-        var itemNum = 0;
-        for (var i in gameObjects['items']) {
-            if (existIdList.indexOf(parseInt(i)) < 0) {
-                deleteIdList.push(i);
-            } else {
-                itemNum += 1;
-            }
+    var deleteIdList = [];
+    var itemNum = 0;
+    for (var i in gameObjects['items']) {
+        if (existIdList.indexOf(parseInt(i)) < 0) {
+            deleteIdList.push(i);
+        } else {
+            itemNum += 1;
         }
-        gameObjects.itemNum = itemNum;
+    }
+    gameObjects.itemNum = itemNum;
 
-        for (var i in deleteIdList) {
-            var id = deleteIdList[i];
-            if (gameObjects['items'][id]) {
-                gameObjects['items'][id].destroy(destroyChildren = true);
-                delete gameObjects['items'][id];
-            }
+    for (var i in deleteIdList) {
+        var id = deleteIdList[i];
+        if (gameObjects['items'][id]) {
+            gameObjects['items'][id].destroy(destroyChildren = true);
+            delete gameObjects['items'][id];
         }
     }
     
 }
-function update() {
+function update(t, delta) {
     updatePlayers(this);
     updateBullets(this);
     updateItems(this);
@@ -426,6 +441,9 @@ function update() {
             count += 1;
         }
         this.cameras.main.scrollY += diffY;
+        this.cameras.main.setZoom(1);
+    } else {
+        cameraControls.update(delta);
     }
 
 }
