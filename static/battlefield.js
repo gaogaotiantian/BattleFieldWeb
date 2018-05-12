@@ -27,7 +27,7 @@ function connectToServer() {
     sendActionSocket = new WebSocket(ws_url+"/sendAction/" + channel);
 
     $('#connect-button').addClass('disabled');
-    $('connection-status').text("");
+    $('#connection-status').text("");
 
     gameInfoSocket.onmessage = function(message) {
         var data = JSON.parse(message.data);
