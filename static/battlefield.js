@@ -39,7 +39,7 @@ function connectToServer() {
                     game['items']   = data['items'];
                     game['timestamp'] = data['timestamp'];
                     var deltaTime = Date.now() / 1000.0 - game['timestamp'];
-                    if (!game['clientDeltaTime'] || Math.abs(deltaTime - game['clientDeltaTime']) > 0.1) {
+                    if (!game['clientDeltaTime'] || Math.abs(deltaTime - game['clientDeltaTime']) > 0.15) {
                         game['clientDeltaTime'] = deltaTime;
                     }
                 }
