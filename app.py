@@ -15,7 +15,7 @@ if os.environ.get('REDISCLOUD_URL'):
 else:
     REDIS_URL = ""
     
-pool = redis.BlockingConnectionPool.from_url(REDIS_URL, max_connections=7)
+pool = redis.BlockingConnectionPool.from_url(REDIS_URL, max_connections=30)
 redisConn = redis.Redis(connection_pool = pool)
 
 app = Flask(__name__, static_url_path='/static')
