@@ -51,11 +51,13 @@ function connectToServer() {
             } else if (data['infoType'] == 'joinInfo') {
                 game['id'] = data['id'];
             } else if (data['infoType'] == 'event') {
-                var e = data['event'];
-                if (e['eventType'] == 'playerDown') {
-                    playerDown(e['id']);
-                } else if (e['eventType'] == 'bulletHit') {
-                    playerHitQueue.push(e['player']);
+                for (var i = 0; i < data['event'].length; i++) {
+                    var e = data['event'][i];
+                    if (e['eventType'] == 'playerDown') {
+                        playerDown(e['id']);
+                    } else if (e['eventType'] == 'bulletHit') {
+                        playerHitQueue.push(e['player']);
+                    }
                 }
             }
         }

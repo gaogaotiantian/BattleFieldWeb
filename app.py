@@ -2,6 +2,7 @@ import os
 import json
 import base64
 import random
+import queue
 
 import flask
 from flask import Flask, render_template
@@ -27,6 +28,7 @@ sockets = Sockets(app)
 class GameBackend(object):
     def __init__(self):
         self.clients = []
+        self.actionQueue = queue.Queue()
         self.pubsub = redisConn.pubsub()
         self.pubsub.subscribe('events')
     
@@ -49,12 +51,23 @@ class GameBackend(object):
                     for client in self.clients:
                         gevent.spawn(self.send, client, dataStr)
 
+    def sendActions(self):
+        while True:
+            actionList = []
+            while not self.actionQueue.empty():
+                action = self.actionQueue.get()
+                actionList.append(action)
+            if len(actionList) > 0:
+                redisConn.rpush('actionQueue', json.dumps(actionList))
+            gevent.sleep(0.01)
+
+
     def send(self, client, data):
         try:
             client['wsconn'].send(data)
         except Exception:
             data = {"actionType": "leave", "channel":client['channel']}
-            redisConn.rpush('actionQueue', json.dumps(data))
+            self.actionQueue.put(data)
             try:
                 self.clients.remove(client)
             except Exception:
@@ -65,6 +78,7 @@ class GameBackend(object):
 
     def run(self):
         gevent.spawn(self.listenEvents)
+        gevent.spawn(self.sendActions)
         while True:
             data = self.getData()
             if data:
@@ -92,15 +106,13 @@ def getGameInfo(ws, channel):
 @sockets.route('/sendAction/<channel>')
 def sendAction(ws, channel):
     while not ws.closed:
-        gevent.sleep(0.02)
         message = ws.receive()
         if message:
             data = json.loads(message)
             if data['actionType'] == 'join':
                 data['channel'] = channel
-                redisConn.rpush('actionQueue', json.dumps(data))
-            else:
-                redisConn.rpush('actionQueue', message)
+            game.actionQueue.put(data)
+        gevent.sleep(0.02)
     
 @app.route('/')
 def index():
